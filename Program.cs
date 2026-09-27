@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace MyFirstConsoleApp
 {
@@ -6,44 +8,44 @@ namespace MyFirstConsoleApp
     {
         static void Main(string[] args)
         {
-            OperatorExamples();
-        }
+            Console.WriteLine("=========================================");
+            Console.WriteLine(" Criando o banco de dados SQLite... ");
+            Console.WriteLine("=========================================");
 
-        private static void OperatorExamples()
-        {
-            // This statement declares a variable and sets it to 3
-            int width = 3;
-
-            // The ++ operator increments a variable (adds 1 to it)
-            width++;
-
-            // Declare two more int variables to hold numbers and
-            // use the + and * operators to add and multiply values
-            int height = 2 + 4;
-            int area = width * height;
-            Console.WriteLine(area);
-
-            while (area < 50)
+            using (var db = new MeuBancoContext())
             {
-                height++;
-                area = width * height;
+                // Este comando cria o arquivo .db e as tabelas na hora!
+                db.Database.EnsureCreated();
+
+                // Insere um dado de teste se o banco estiver vazio
+                if (!db.Usuarios.Any())
+                {
+                    db.Usuarios.Add(new Usuario { Nome = "Enrique", Email = "enrique@teste.com" });
+                    db.Usuarios.Add(new Usuario { Nome = "Amigo do Deploy", Email = "amigo@teste.com" });
+                    db.SaveChanges();
+                    Console.WriteLine("👉 Dados de teste salvos com sucesso!");
+                }
             }
 
-            do
-            {
-                width--;
-                area = width * height;
-            } while (area > 25);
-
-            // The next two statements declare string variables
-            // and use + to concatenate them (join them together)
-            string result = "The area";
-            result = result + " is " + area;
-            Console.WriteLine(result);
-
-            // A Boolean variable is either true or false
-            bool truthValue = true;
-            Console.WriteLine(truthValue);
+            Console.WriteLine("\n✅ Banco pronto! Procure o arquivo 'meubanco.db' na barra lateral.");
         }
     }
+
+    // Definição da tabela
+    public class Usuario
+    {
+        public int Id { get; set; }
+        public string Nome { get; set; }
+        public string Email { get; set; }
+    }
+
+    // Configuração do SQLite
+    public class MeuBancoContext : DbContext
+    {
+        public DbSet<Usuario> Usuarios { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+            => options.UseSqlite("Data Source=meubanco.db");
+    }
 }
+
