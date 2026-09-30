@@ -1,81 +1,65 @@
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-
+builder.Services.AddDbContext<MeuBancoContext>();
 builder.Services.AddEndpointsApiExplorer();
-
 builder.Services.AddSwaggerGen();
-
-
 
 var app = builder.Build();
 
-
-
-// Configure the HTTP request pipeline.
-
 if (app.Environment.IsDevelopment())
-
 {
-
     app.UseSwagger();
-
     app.UseSwaggerUI();
-
 }
 
-
-
-var summaries = new[]
-
+using (var scope = app.Services.CreateScope())
 {
+    var db = scope.ServiceProvider.GetRequiredService<MeuBancoContext>();
+    db.Database.EnsureCreated();
 
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
+    if (!db.Usuarios.Any())
+    {
+        db.Usuarios.Add(new Usuario { Nome = "Enrique", Email = "enrique@teste.com" });
+        db.SaveChanges();
+    }
+}
 
-};
-
-
-
-app.MapGet("/weatherforecast", () =>
-
+app.MapGet("/usuarios", async (MeuBancoContext db) =>
 {
+    return await db.Usuarios.ToListAsync();
+});
 
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-
-        new WeatherForecast
-
-        (
-
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-
-            Random.Shared.Next(-20, 55),
-
-            summaries[Random.Shared.Next(summaries.Length)]
-
-        ))
-
-        .ToArray();
-
-    return forecast;
-
-})
-
-.WithName("GetWeatherForecast")
-
-.WithOpenApi();
-
-
+app.MapPost("/usuarios", async (MeuBancoContext db, Usuario usuario) =>
+{
+    db.Usuarios.Add(usuario);
+    await db.SaveChangesAsync();
+    return Results.Created($"/usuarios/{usuario.Id}", usuario);
+});
 
 app.Run();
 
-
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-
+public class Usuario
 {
+    public int Id { get; set; }
+    public string Nome { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+}
 
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+public class MeuBancoContext : DbContext
+{
+    public DbSet<Usuario> Usuarios { get; set; }
 
+    public MeuBancoContext() { }
+
+    public MeuBancoContext(DbContextOptions options) : base(options) { }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder options)
+    {
+        if (!options.IsConfigured)
+        {
+            options.UseSqlite("Data Source=meubanco.db");
+        }
+    }
 }
