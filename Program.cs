@@ -1,51 +1,68 @@
-﻿using System;
-using System.Linq;
 using Microsoft.EntityFrameworkCore;
 
-namespace MyFirstConsoleApp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
 {
-    class Program
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService();
+    db.Database.EnsureCreated();
+
+    if (!db.Usuarios.Any())
     {
-        static void Main(string[] args)
-        {
-            Console.WriteLine("=========================================");
-            Console.WriteLine(" Criando o banco de dados SQLite... ");
-            Console.WriteLine("=========================================");
-
-            using (var db = new MeuBancoContext())
-            {
-                // Este comando cria o arquivo .db e as tabelas na hora!
-                db.Database.EnsureCreated();
-
-                // Insere um dado de teste se o banco estiver vazio
-                if (!db.Usuarios.Any())
-                {
-                    db.Usuarios.Add(new Usuario { Nome = "Enrique", Email = "enrique@teste.com" });
-                    db.Usuarios.Add(new Usuario { Nome = "Amigo do Deploy", Email = "amigo@teste.com" });
-                    db.SaveChanges();
-                    Console.WriteLine("👉 Dados de teste salvos com sucesso!");
-                }
-            }
-
-            Console.WriteLine("\n✅ Banco pronto! Procure o arquivo 'meubanco.db' na barra lateral.");
-        }
-    }
-
-    // Definição da tabela
-    public class Usuario
-    {
-        public int Id { get; set; }
-        public string Nome { get; set; }
-        public string Email { get; set; }
-    }
-
-    // Configuração do SQLite
-    public class MeuBancoContext : DbContext
-    {
-        public DbSet<Usuario> Usuarios { get; set; }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
-            => options.UseSqlite("Data Source=meubanco.db");
+        db.Usuarios.Add(new Usuario { Nome = "Enrique", Email = "enrique@teste.com" });
+        db.Usuarios.Add(new Usuario { Nome = "Amigo do Deploy", Email = "amigo@teste.com" });
+        db.SaveChanges();
+        Console.WriteLine("👉 Test data saved successfully!");
     }
 }
 
+app.MapGet("/usuarios", async (MeuBancoContext db) =>
+{
+    return await db.Usuarios.ToListAsync();
+});
+
+app.MapPost("/usuarios", async (MeuBancoContext db, Usuario usuario) =>
+{
+    db.Usuarios.Add(usuario);
+    await db.SaveChangesAsync();
+    return Results.Created($"/usuarios/{usuario.Id}", usuario);
+});
+
+app.Run();
+
+public class Usuario
+{
+    public int Id { get; set; }
+    public string Nome { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+}
+
+public class MeuBancoContext : DbContext
+{
+    public DbSet Usuarios { get; set; }
+
+    public MeuBancoContext() { }
+
+    public MeuBancoContext(DbContextOptions options) : base(options) { }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder options)
+    {
+        if (!options.IsConfigured)
+        {
+            options.UseSqlite("Data Source=meubanco.db");
+        }
+    }
+}

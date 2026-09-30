@@ -1,0 +1,16 @@
+
+  
+    net8.0
+    enable
+    enable
+  
+  
+    
+    
+    
+    
+    
+      runtime; build; native; contentfiles; analyzers; buildtransitive
+      all
+    
+  
